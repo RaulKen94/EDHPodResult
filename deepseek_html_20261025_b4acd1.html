@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>cEDH Pod Generator</title>
+    <style>
+        :root {
+            --bg-color: #0b1120;
+            --panel-bg: #1e293b;
+            --text-main: #f8fafc;
+            --accent: #38bdf8;
+            --gold: #fbbf24;
+            --border: #334155;
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            gap: 15px;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+                height: auto;
+                overflow-y: auto;
+            }
+            #sidebar {
+                width: 100%;
+                max-height: 45vh;
+            }
+            canvas {
+                max-height: 55vh;
+            }
+        }
+
+        #sidebar {
+            width: 380px;
+            background-color: var(--panel-bg);
+            padding: 15px;
+            border-radius: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            box-sizing: border-box;
+            border: 1px solid var(--border);
+        }
+
+        .player-slot {
+            border: 1px solid var(--border);
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #0f172a;
+        }
+
+        .player-slot h3 {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .input-group { display: flex; gap: 5px; margin-bottom: 6px; }
+        
+        input[type="text"], select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background-color: #1e293b;
+            color: white;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        input[type="text"]:focus, select:focus { 
+            border-color: var(--accent); 
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+        }
+
+        input.input-error {
+            border-color: var(--error) !important;
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+        }
+
+        input.input-success {
+            border-color: var(--success) !important;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2) !important;
+        }
+
+        .btn {
+            background-color: var(--border);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .btn:hover { background-color: #475569; }
+        .btn-add { background-color: var(--accent); color: #0f172a; }
+        .btn-add:hover { background-color: #0ea5e9; }
+
+        .dropdown {
+            position: absolute;
+            background-color: #1e293b;
+            border: 1px solid var(--accent);
+            border-radius: 6px;
+            width: 250px;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .dropdown-item { 
+            padding: 10px; 
+            font-size: 14px; 
+            cursor: pointer; 
+            border-bottom: 1px solid var(--border);
+        }
+        .dropdown-item:last-child { border-bottom: none; }
+        .dropdown-item:hover { background-color: #334155; }
+        .dropdown-item.disabled { 
+            color: #94a3b8; 
+            cursor: default; 
+            font-style: italic;
+        }
+        .dropdown-item.disabled:hover { background-color: transparent; }
+
+        #preview-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        canvas {
+            max-width: 100%;
+            max-height: 90vh;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.8);
+            background-color: var(--bg-color);
+        }
+
+        .action-btn {
+            padding: 15px 24px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+        }
+        .action-btn:hover { background: linear-gradient(135deg, #34d399, #10b981); }
+
+        #export-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(11, 17, 32, 0.95);
+            z-index: 1000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+            backdrop-filter: blur(5px);
+        }
+        
+        #export-modal img {
+            max-width: 100%;
+            max-height: 70vh;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+            background-color: var(--bg-color);
+            object-fit: contain;
+            -webkit-touch-callout: default !important;
+            user-select: auto !important;
+            margin-bottom: 20px;
+        }
+
+        #export-modal p {
+            color: white;
+            font-size: 15px;
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            line-height: 1.4;
+        }
+
+        .close-btn {
+            padding: 12px 30px;
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2 style="margin:0; font-size: 18px; letter-spacing: 1px;">cEDH POD</h2>
+        
+        <div class="player-slot" style="background: var(--panel-bg); border-color: var(--accent); margin-bottom: 5px;">
+            <h3 style="color: var(--accent);">Modalità</h3>
+            <div class="input-group">
+                <select id="mode-selector" onchange="changeMode()">
+                    <option value="pod">Pod (Default)</option>
+                    <option value="classifica">Classifica</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- AGGIORNATE LE DIMENSIONI DELLA NOTA -->
+        <div class="player-slot" id="classifica-options" style="display:none; background: #0f172a; border-color: var(--gold); margin-bottom: 5px;">
+            <h3 style="color: var(--gold);">Opzioni Classifica</h3>
+            <div class="input-group">
+                <select id="note-size-selector" onchange="updateNoteSize()">
+                    <option value="32" selected>Piccolo (32)</option>
+                    <option value="40">Medio (40)</option>
+                    <option value="48">Grande (48)</option>
+                    <option value="60">Molto Grande (60)</option>
+                </select>
+            </div>
+        </div>
+
+        <button class="btn" onclick="loadDemo()" style="background-color: #8b5cf6; color: white;">✨ Carica Esempio</button>
+        
+        <div class="player-slot" id="result-section" style="background: #0f172a; border-color: var(--accent);">
+            <h3 style="color: var(--accent);">Risultato Partita</h3>
+            <div class="input-group">
+                <select id="res-type" onchange="updateResultUI()">
+                    <option value="none">Nessun Risultato</option>
+                    <option value="win">Win</option>
+                    <option value="draw">Draw</option>
+                </select>
+            </div>
+            <div class="input-group" id="res-player-group" style="display:none;">
+                <select id="res-player" onchange="updateResultState()">
+                    <option value="0">Giocatore 1</option>
+                    <option value="1">Giocatore 2</option>
+                    <option value="2">Giocatore 3</option>
+                    <option value="3">Giocatore 4</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="players-container"></div>
+        <button class="action-btn" onclick="openImageModal()">📸 Genera e Salva</button>
+    </div>
+
+    <div id="preview-area">
+        <canvas id="podCanvas" width="1000" height="1100"></canvas>
+    </div>
+
+    <div id="export-modal">
+        <p>Tieni premuto sull'immagine<br>e scegli "Salva immagine"</p>
+        <img id="export-image" src="" alt="Pod Generato">
+        <button class="close-btn" onclick="closeImageModal()">Chiudi</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('podCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let currentMode = 'pod';
+        let gameResult = { type: 'none', playerIndex: 0 };
+        let currentBlobUrl = null;
+        let noteFontSize = 32; // AGGIORNATO DEFAULT
+
+        const players = [
+            { id: 0, cmd1: null, cmd1Name: '', cmd2: null, cmd2Name: '', comp: null, compName: '', note: '' },
+            { id: 1, cmd1: null, cmd1Name: '', cmd2: null, cmd2Name: '', comp: null, compName: '', note: '' },
+            { id: 2, cmd1: null, cmd1Name: '', cmd2: null, cmd2Name: '', comp: null, compName: '', note: '' },
+            { id: 3, cmd1: null, cmd1Name: '', cmd2: null, cmd2Name: '', comp: null, compName: '', note: '' }
+        ];
+
+        function initUI() {
+            const container = document.getElementById('players-container');
+            players.forEach((p, index) => {
+                const div = document.createElement('div');
+                div.className = 'player-slot';
+                div.innerHTML = `
+                    <h3>P${index + 1}</h3>
+                    <div class="input-group">
+                        <input type="text" id="in-${index}-1" placeholder="Comandante 1..." oninput="search(event, ${index}, 'cmd1')" autocomplete="off">
+                        <button class="btn btn-add" onclick="toggleCompanion(${index})" title="Aggiungi Companion">+</button>
+                    </div>
+                    <div class="input-group">
+                        <input type="text" id="in-${index}-2" placeholder="Partner / Background (opzionale)..." oninput="search(event, ${index}, 'cmd2')" autocomplete="off">
+                    </div>
+                    <div class="input-group" id="group-${index}-comp" style="display:none;">
+                        <input type="text" id="in-${index}-comp" placeholder="Companion (opzionale)..." oninput="search(event, ${index}, 'comp')" autocomplete="off">
+                    </div>
+                    <div class="input-group note-field" style="display:none; margin-top: 10px;">
+                        <input type="text" id="in-${index}-note" placeholder="Nota per la classifica..." oninput="updateNote(${index}, this.value)" autocomplete="off" style="border-color: #8b5cf6;">
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function changeMode() {
+            currentMode = document.getElementById('mode-selector').value;
+            document.getElementById('result-section').style.display = currentMode === 'pod' ? 'block' : 'none';
+            document.getElementById('classifica-options').style.display = currentMode === 'classifica' ? 'block' : 'none';
+            document.querySelectorAll('.note-field').forEach(el => {
+                el.style.display = currentMode === 'classifica' ? 'flex' : 'none';
+            });
+            drawCanvas();
+        }
+
+        function updateNote(pIndex, val) {
+            players[pIndex].note = val;
+            drawCanvas();
+        }
+
+        function updateNoteSize() {
+            noteFontSize = parseInt(document.getElementById('note-size-selector').value);
+            drawCanvas();
+        }
+
+        function updateResultUI() {
+            const type = document.getElementById('res-type').value;
+            document.getElementById('res-player-group').style.display = (type === 'win') ? 'flex' : 'none';
+            updateResultState();
+        }
+
+        function updateResultState() {
+            const type = document.getElementById('res-type').value;
+            const playerIndex = parseInt(document.getElementById('res-player').value);
+            gameResult = { type, playerIndex };
+            drawCanvas();
+        }
+
+        let searchTimeout;
+        function search(e, pIndex, slot) {
+            const query = e.target.value.trim();
+            const input = e.target;
+            
+            if (players[pIndex][slot + 'Name'] !== query) {
+                players[pIndex][slot] = null;
+                players[pIndex][slot + 'Name'] = '';
+                drawCanvas();
+                input.classList.remove('input-success');
+                if (query.length > 0) {
+                    input.classList.add('input-error');
+                } else {
+                    input.classList.remove('input-error');
+                }
+            }
+
+            document.querySelectorAll('.dropdown').forEach(d => d.remove());
+            if (query.length < 2) return;
+
+            clearTimeout(searchTimeout);
+            
+            const dd = document.createElement('div');
+            dd.className = 'dropdown';
+            dd.style.display = 'block'; 
+            const rect = input.getBoundingClientRect();
+            dd.style.left = rect.left + 'px';
+            dd.style.top = (rect.bottom + window.scrollY) + 'px';
+            dd.innerHTML = '<div class="dropdown-item disabled">⏳ Ricerca in corso...</div>';
+            document.body.appendChild(dd);
+
+            searchTimeout = setTimeout(async () => {
+                try {
+                    const res = await fetch(`https://api.scryfall.com/cards/autocomplete?q=${encodeURIComponent(query)}`);
+                    const data = await res.json();
+                    dd.innerHTML = ''; 
+
+                    if (!data.data || data.data.length === 0) {
+                        dd.innerHTML = '<div class="dropdown-item disabled" style="color: var(--error);">❌ Nessun comandante trovato</div>';
+                        return;
+                    }
+
+                    data.data.slice(0, 5).forEach(name => {
+                        const item = document.createElement('div');
+                        item.className = 'dropdown-item';
+                        item.innerText = name;
+                        item.onclick = () => selectCard(name, pIndex, slot);
+                        dd.appendChild(item);
+                    });
+                } catch (err) { 
+                    dd.innerHTML = '<div class="dropdown-item disabled" style="color: var(--error);">❌ Errore di rete</div>';
+                }
+            }, 300);
+        }
+
+        async function fetchCardImage(cardName) {
+            const res = await fetch(`https://api.scryfall.com/cards/named?fuzzy=${encodeURIComponent(cardName)}`);
+            const card = await res.json();
+            if (card.object === 'error') throw new Error("Carta non trovata");
+            
+            let imgUrl = card.image_uris ? card.image_uris.png : 
+                         (card.card_faces && card.card_faces[0].image_uris ? card.card_faces[0].image_uris.png : null);
+            
+            if (!imgUrl) imgUrl = card.image_uris ? card.image_uris.large : 
+                         (card.card_faces && card.card_faces[0].image_uris ? card.card_faces[0].image_uris.large : null);
+            if (!imgUrl) imgUrl = card.image_uris ? card.image_uris.normal : 
+                         (card.card_faces && card.card_faces[0].image_uris ? card.card_faces[0].image_uris.normal : null);
+            
+            if (!imgUrl) throw new Error("Nessuna immagine trovata");
+
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = "anonymous"; 
+                img.onload = () => resolve(img);
+                img.onerror = () => reject(new Error("Errore CORS immagine"));
+                img.src = imgUrl;
+            });
+        }
+
+        async function selectCard(name, pIndex, slot) {
+            document.querySelectorAll('.dropdown').forEach(d => d.remove());
+            const inputId = `in-${pIndex}-${slot === 'comp' ? 'comp' : slot === 'cmd1' ? '1' : '2'}`;
+            const input = document.getElementById(inputId);
+            input.value = name;
+
+            try {
+                const img = await fetchCardImage(name);
+                players[pIndex][slot] = img;
+                players[pIndex][slot + 'Name'] = name;
+                input.classList.remove('input-error');
+                input.classList.add('input-success');
+                drawCanvas();
+            } catch (err) { 
+                input.classList.remove('input-success');
+                input.classList.add('input-error');
+                alert("Errore caricamento carta. Verifica la connessione.");
+            }
+        }
+
+        function toggleCompanion(index) {
+            const group = document.getElementById(`group-${index}-comp`);
+            const isHidden = group.style.display === 'none';
+            group.style.display = isHidden ? 'block' : 'none';
+            if (!isHidden) {
+                document.getElementById(`in-${index}-comp`).value = '';
+                document.getElementById(`in-${index}-comp`).classList.remove('input-success', 'input-error');
+                players[index].comp = null;
+                players[index].compName = '';
+                drawCanvas();
+            }
+        }
+
+        function drawCard(img, x, y, w, h, isComp = false) {
+            if (!img) return;
+            ctx.save();
+            
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+            ctx.shadowBlur = 15;
+            ctx.shadowOffsetY = 8;
+
+            const borderGrad = ctx.createLinearGradient(x, y, x+w, y+h);
+            if (isComp) {
+                borderGrad.addColorStop(0, '#b45309');
+                borderGrad.addColorStop(1, '#f59e0b');
+            } else {
+                borderGrad.addColorStop(0, '#fbbf24');
+                borderGrad.addColorStop(1, '#d97706');
+            }
+            ctx.fillStyle = borderGrad;
+            ctx.fillRect(x - 4, y - 4, w + 8, h + 8);
+            
+            ctx.shadowColor = 'transparent';
+            ctx.drawImage(img, x, y, w, h);
+            
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x - 2, y - 2, w + 4, h + 4);
+            ctx.restore();
+        }
+
+        function drawCenteredText(text, x, centerY, maxWidth, fontSize, lineHeight) {
+            ctx.font = `bold ${fontSize}px "Inter", system-ui, sans-serif`;
+            const words = text.split(' ');
+            let line = '';
+            let lines = [];
+            
+            for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > maxWidth && n > 0) {
+                    lines.push(line.trim());
+                    line = words[n] + ' ';
+                } else {
+                    line = testLine;
+                }
+            }
+            lines.push(line.trim());
+            
+            const totalHeight = lines.length * lineHeight;
+            let startY = centerY - (totalHeight / 2);
+            
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            
+            lines.forEach((l, index) => {
+                ctx.fillText(l, x, startY + (index * lineHeight));
+            });
+        }
+
+        function drawCanvas() {
+            if (currentMode === 'pod') {
+                canvas.width = 1000;
+                canvas.height = 1100;
+                
+                const bgGrad = ctx.createRadialGradient(500, 550, 100, 500, 550, 1000);
+                bgGrad.addColorStop(0, '#1e293b');
+                bgGrad.addColorStop(1, '#0f172a');
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, 1000, 1100);
+
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+                ctx.lineWidth = 1;
+                for(let i=0; i<1000; i+=50) {
+                    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 1100); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(1000, i); ctx.stroke();
+                }
+
+                const startCoords = [{x: 0, y: 0}, {x: 500, y: 0}, {x: 0, y: 600}, {x: 500, y: 600}];
+
+                players.forEach((p, i) => {
+                    const startX = startCoords[i].x;
+                    const startY = startCoords[i].y;
+
+                    ctx.fillStyle = 'rgba(30, 41, 59, 0.4)';
+                    ctx.fillRect(startX + 10, startY + 10, 480, 480);
+
+                    const badgeRadius = 90;
+                    ctx.beginPath();
+                    ctx.moveTo(startX + 500, startY);
+                    ctx.arc(startX + 500, startY, badgeRadius, Math.PI, Math.PI / 2, true);
+                    ctx.closePath();
+                    
+                    ctx.fillStyle = '#1e293b'; 
+                    ctx.fill();
+                    ctx.strokeStyle = '#38bdf8';
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+
+                    ctx.save();
+                    ctx.shadowColor = '#38bdf8';
+                    ctx.shadowBlur = 15;
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '900 26px "Inter", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(`P${i+1}`, startX + 500 - 35, startY + 35);
+                    ctx.restore();
+
+                    const cardW = 280;
+                    const cardH = 390;
+
+                    if (p.cmd1 && !p.cmd2) {
+                        drawCard(p.cmd1, startX + (500 - cardW) / 2, startY + (500 - cardH) / 2, cardW, cardH);
+                    } 
+                    else if (p.cmd1 && p.cmd2) {
+                        drawCard(p.cmd1, startX + 20, startY + 30, cardW, cardH);
+                        drawCard(p.cmd2, startX + 200, startY + 100, cardW, cardH);
+                    }
+
+                    if (p.comp) {
+                        drawCard(p.comp, startX + 500 - 125 - 20, startY + 500 - 174 - 20, 125, 174, true);
+                    }
+                });
+
+                if (gameResult.type !== 'none') {
+                    let text = ""; let glowColor = "#475569"; let lineColor = "#64748b";
+                    if (gameResult.type === 'win') {
+                        const p = players[gameResult.playerIndex];
+                        let names = [];
+                        if (p.cmd1Name) names.push(p.cmd1Name);
+                        if (p.cmd2Name) names.push(p.cmd2Name);
+                        text = `🏆 WIN: ${names.length > 0 ? names.join(" + ") : "Sconosciuto"}`;
+                        glowColor = "#fbbf24"; lineColor = "#fbbf24";
+                    } else if (gameResult.type === 'draw') {
+                        text = `🤝 DRAW`; glowColor = "#38bdf8"; lineColor = "#38bdf8";
+                    }
+
+                    const bandGrad = ctx.createLinearGradient(0, 500, 1000, 500);
+                    bandGrad.addColorStop(0, 'rgba(15, 23, 42, 0.8)');
+                    bandGrad.addColorStop(0.5, 'rgba(30, 41, 59, 0.95)');
+                    bandGrad.addColorStop(1, 'rgba(15, 23, 42, 0.8)');
+                    ctx.fillStyle = bandGrad;
+                    ctx.fillRect(0, 500, 1000, 100);
+
+                    ctx.save();
+                    ctx.shadowColor = lineColor; ctx.shadowBlur = 15;
+                    ctx.fillStyle = lineColor;
+                    ctx.fillRect(0, 500, 1000, 3);
+                    ctx.fillRect(0, 597, 1000, 3);
+                    ctx.restore();
+
+                    let fontSize = 36;
+                    ctx.font = `900 ${fontSize}px "Inter", sans-serif`;
+                    while (ctx.measureText(text).width > 850 && fontSize > 20) {
+                        fontSize -= 2;
+                        ctx.font = `900 ${fontSize}px "Inter", sans-serif`;
+                    }
+
+                    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                    ctx.save();
+                    ctx.shadowColor = glowColor; ctx.shadowBlur = 20;
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fillText(text, 500, 550);
+                    ctx.restore();
+                } else {
+                    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(0, 550); ctx.lineTo(1000, 550); ctx.stroke();
+                }
+
+            } else {
+                // --- MODALITÀ CLASSIFICA ---
+                const validPlayers = players.filter(p => p.cmd1);
+                const N = validPlayers.length;
+                
+                const canvasW = 1400;
+                const rowHeight = 400;
+                const outerMargin = 40;
+                const totalListHeight = N * rowHeight;
+                
+                canvas.width = canvasW;
+                canvas.height = Math.max(400, (outerMargin * 2) + totalListHeight);
+
+                ctx.fillStyle = '#0b1120';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+                ctx.lineWidth = 1;
+                for(let i=0; i<canvasW; i+=50) {
+                    ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvasW, i); ctx.stroke();
+                }
+
+                if (N === 0) {
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.font = '24px "Inter", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('Inserisci almeno un comandante per generare la classifica.', canvasW/2, 200);
+                } else {
+                    ctx.fillStyle = 'rgba(30, 41, 59, 0.5)';
+                    ctx.fillRect(outerMargin, outerMargin, canvasW - (outerMargin*2), totalListHeight);
+
+                    validPlayers.forEach((p, i) => {
+                        const Y = outerMargin + (i * rowHeight);
+                        
+                        ctx.fillStyle = '#fbbf24';
+                        ctx.font = '900 80px "Inter", sans-serif';
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(`${i+1}°`, 80, Y + (rowHeight / 2));
+
+                        const cardW = 250;
+                        const cardH = 350;
+                        
+                        const cmd1X = 200;
+                        const cmd2X = cmd1X + cardW + 20; // 470
+                        const compX = cmd2X + cardW + 20; // 740
+                        const compW = 140;
+                        const compH = 196;
+                        
+                        if (p.cmd1 && !p.cmd2) {
+                            const singleCmdX = cmd1X + (cardW + 20) / 2; 
+                            drawCard(p.cmd1, singleCmdX, Y + (rowHeight - cardH)/2, cardW, cardH);
+                        } 
+                        else if (p.cmd1 && p.cmd2) {
+                            drawCard(p.cmd1, cmd1X, Y + (rowHeight - cardH)/2, cardW, cardH);
+                            drawCard(p.cmd2, cmd2X, Y + (rowHeight - cardH)/2, cardW, cardH);
+                        }
+
+                        if (p.comp) {
+                            drawCard(p.comp, compX, Y + (rowHeight - compH)/2, compW, compH, true);
+                        }
+
+                        if (p.note && p.note.trim() !== '') {
+                            ctx.fillStyle = '#ffffff'; 
+                            const lineHeight = noteFontSize * 1.3;
+                            drawCenteredText(p.note, 940, Y + (rowHeight / 2), 420, noteFontSize, lineHeight);
+                        }
+
+                        if (i < N - 1) {
+                            ctx.strokeStyle = 'rgba(251, 191, 36, 0.2)';
+                            ctx.lineWidth = 2;
+                            ctx.beginPath();
+                            ctx.moveTo(outerMargin + 20, Y + rowHeight);
+                            ctx.lineTo(canvasW - outerMargin - 20, Y + rowHeight);
+                            ctx.stroke();
+                        }
+                    });
+
+                    ctx.save();
+                    ctx.shadowColor = '#fbbf24';
+                    ctx.shadowBlur = 25;
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 5;
+                    ctx.strokeRect(outerMargin, outerMargin, canvasW - (outerMargin*2), totalListHeight);
+                    ctx.restore();
+                }
+            }
+        }
+
+        function openImageModal() {
+            canvas.toBlob(async (blob) => {
+                if (!blob) { alert("Errore di generazione."); return; }
+
+                const file = new File([blob], 'commander_image.png', { type: 'image/png' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    try {
+                        await navigator.share({ files: [file], title: 'cEDH', text: 'Ecco il risultato!' });
+                        return; 
+                    } catch (err) { console.log('Condivisione annullata', err); }
+                }
+
+                if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+                currentBlobUrl = URL.createObjectURL(blob);
+                
+                document.getElementById('export-image').src = currentBlobUrl;
+                document.getElementById('export-modal').style.display = 'flex';
+            }, 'image/png');
+        }
+
+        function closeImageModal() {
+            document.getElementById('export-modal').style.display = 'none';
+            document.getElementById('export-image').src = '';
+        }
+
+        async function loadDemo() {
+            document.getElementById('mode-selector').value = 'pod';
+            changeMode();
+
+            players.forEach(p => { 
+                p.cmd1 = null; p.cmd1Name = ''; 
+                p.cmd2 = null; p.cmd2Name = ''; 
+                p.comp = null; p.compName = ''; 
+                p.note = '';
+            });
+            
+            document.querySelectorAll('input[type="text"]').forEach(inp => {
+                inp.value = '';
+                inp.classList.remove('input-success', 'input-error');
+            });
+
+            drawCanvas();
+
+            const demoList = [
+                { pIndex: 0, slot: 'cmd1', name: "Atraxa, Praetors' Voice" },
+                { pIndex: 1, slot: 'cmd1', name: "Krenko, Mob Boss" },
+                { pIndex: 2, slot: 'cmd1', name: "Tymna the Weaver" },
+                { pIndex: 2, slot: 'cmd2', name: "Thrasios, Triton Hero" },
+                { pIndex: 3, slot: 'cmd1', name: "The Ur-Dragon" },
+                { pIndex: 3, slot: 'comp', name: "Lurrus of the Dream-Den" }
+            ];
+
+            demoList.forEach(item => {
+                const idSuffix = item.slot === 'cmd1' ? '1' : item.slot === 'cmd2' ? '2' : 'comp';
+                const input = document.getElementById(`in-${item.pIndex}-${idSuffix}`);
+                input.value = item.name;
+                input.classList.add('input-success');
+                
+                if (item.slot === 'comp') {
+                    document.getElementById(`group-${item.pIndex}-comp`).style.display = 'block';
+                }
+            });
+
+            for (const item of demoList) {
+                try {
+                    const img = await fetchCardImage(item.name);
+                    players[item.pIndex][item.slot] = img;
+                    players[item.pIndex][item.slot + 'Name'] = item.name;
+                    drawCanvas(); 
+                } catch (e) {
+                    console.error("Errore demo per", item.name, e);
+                }
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('input')) {
+                document.querySelectorAll('.dropdown').forEach(d => d.remove());
+            }
+        });
+
+        initUI();
+        drawCanvas();
+    </script>
+</body>
+</html>
