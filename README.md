@@ -12,7 +12,7 @@
 ## English
 
 ### 📌 About the Project
-**EDH Pod Result** is a lightweight, single-file web application designed to simulate and generate images of **Competitive Elder Dragon Highlander (cEDH)** pods and leaderboards. It runs entirely in the browser without the need for a backend or installation.
+**EDH Pod Result** is a lightweight, single-file web application designed to simulate and generate images of **Elder Dragon Highlander (EDH)** pods and leaderboards. It runs entirely in the browser without the need for a backend or installation.
 
 ### ✨ Features
 *   **Commander Search:** Real-time autocomplete using the [Scryfall API](https://scryfall.com/docs/api).
@@ -44,7 +44,7 @@ This project is licensed under the **Apache License 2.0**. See the [LICENSE](LIC
 ## Italiano
 
 ### 📌 Informazioni sul Progetto
-**EDH Pod Result** è un'applicazione web leggera (single-file) progettata per simulare e generare immagini di pod e classifiche per **Competitive Elder Dragon Highlander (cEDH)**. Funziona interamente nel browser, senza necessità di un server backend o installazione.
+**EDH Pod Result** è un'applicazione web leggera (single-file) progettata per simulare e generare immagini di pod e classifiche per **Elder Dragon Highlander (EDH)**. Funziona interamente nel browser, senza necessità di un server backend o installazione.
 
 ### ✨ Funzionalità
 *   **Ricerca Comandanti:** Autocompletamento in tempo reale tramite le [API di Scryfall](https://scryfall.com/docs/api).
